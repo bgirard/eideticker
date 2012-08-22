@@ -172,7 +172,16 @@ function updateGraph(rawdata, measure) {
                                                      'measureValue': Math.round(100.0*item.datapoint[1])/100.0
                                                    }));
       $('#video').css('width', $('#video').parent().width());
-      $('#video').css('max-height', $('#graph-container').height());
+      $('#video').css('float', 'right');
+      $('#video').css('position', 'relative');
+      $('#video').css('background-color', 'black');
+      $('#video').focus(function() {
+        $('#video').css('width', $('#video').parent().width());
+        $('#video').animate({ width: 600}, 1000);
+      });
+      $('#video').blur(function() {
+        $('#video').animate({ width: $('#video').parent().width()}, 1000);
+      });
 
       plot.highlight(item.series, item.datapoint);
     } else {
