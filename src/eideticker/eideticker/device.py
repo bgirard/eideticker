@@ -190,6 +190,14 @@ class DroidADB(mozdevice.DroidADB, EidetickerMixin):
                 didKillProcess = True
         return didKillProcess
 
+    def getPID(self, appname):
+        '''FIXME: Total hack, put this in devicemanagerADB instead'''
+        procs = self.getProcessList()
+        for (pid, name, user) in procs:
+            if name == appname:
+                return pid
+        return None
+
     @property
     def dimensions(self):
         return DEVICE_PROPERTIES[self.model]['dimensions']
