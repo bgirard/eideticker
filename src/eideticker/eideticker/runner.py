@@ -120,6 +120,19 @@ class BrowserRunner(object):
         else:
             self.activity = activity_mappings[self.appname]
 
+    def get_profile(self):
+        if self.isProfiling == False:
+           raise Exception("Can't get profile if it isn't started with the profiling option")
+
+        #remove previous profiles if there is one
+        profile_path = "/tmp/sps_profile.txt"
+        if os.path.exists(profile_path):
+            os.remove(profile_path)
+
+        print "Fetching sps_profile.txt"
+        self.dm.checkCmd(['pull', self.profileLocation, profile_path])
+        os.system("cat " + profile_path);
+
     def start(self, isProfiling=False):
         print "Starting %s... " % self.appname
 
@@ -156,9 +169,12 @@ class BrowserRunner(object):
     def stop(self):
         # Dump the profile
         if self.isProfiling == True:
+            print "Saving sps performance profile"
             self.dm.killProcess(self.appname, signalId=12)
+            self.profileLocation = "/sdcard/profile_0_" + self.dm.getPID(self.appname) + ".txt"
             # Saving goes through the main event loop so give it time to flush
             time.sleep(10)
+
         self.dm.killProcess(self.appname)
         if not self.dm.removeDir(self.remote_profile_dir):
             print "WARNING: Failed to remove profile (%s) from device" % self.remote_profile_dir
