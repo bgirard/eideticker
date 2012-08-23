@@ -120,7 +120,7 @@ class BrowserRunner(object):
         else:
             self.activity = activity_mappings[self.appname]
 
-    def start(self):
+    def start(self, isProfiling=False):
         print "Starting %s... " % self.appname
 
         # for fennec only, we create and use a profile
@@ -135,12 +135,18 @@ class BrowserRunner(object):
             if not self.dm.pushDir(profile.profile, self.remote_profile_dir):
                 raise Exception("Failed to copy profile to device")
 
+            self.isProfiling = isProfiling
+            if self.isProfiling == True:
+                mozEnv = { "MOZ_PROFILER_STARTUP": "true" }
+            else:
+                mozEnv = None
+
             args.extend(["-profile", self.remote_profile_dir])
 
             # sometimes fennec fails to start, so we'll try three times...
             for i in range(3):
                 print "Launching fennec (try %s of 3)" % (i+1)
-                if self.dm.launchFennec(self.appname, url=self.url, extraArgs=args):
+                if self.dm.launchFennec(self.appname, url=self.url, mozEnv=mozEnv, extraArgs=args):
                     return
             raise Exception("Failed to start Fennec after three tries")
         else:
@@ -148,6 +154,11 @@ class BrowserRunner(object):
                                       url=self.url)
 
     def stop(self):
+        # Dump the profile
+        if self.isProfiling == True:
+            self.dm.killProcess(self.appname, signalId=12)
+            # Saving goes through the main event loop so give it time to flush
+            time.sleep(10)
         self.dm.killProcess(self.appname)
         if not self.dm.removeDir(self.remote_profile_dir):
             print "WARNING: Failed to remove profile (%s) from device" % self.remote_profile_dir

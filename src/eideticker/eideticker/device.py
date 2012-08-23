@@ -177,13 +177,16 @@ class DroidADB(mozdevice.DroidADB, EidetickerMixin):
         mozdevice.DroidADB.__init__(self, **kwargs)
         self._init() # custom eideticker init steps
 
-    def killProcess(self, appname, forceKill=False):
+    def killProcess(self, appname, signalId=None, forceKill=False):
         '''FIXME: Total hack, put this in devicemanagerADB instead'''
         procs = self.getProcessList()
         didKillProcess = False
         for (pid, name, user) in procs:
             if name == appname:
-                self.runCmd(["shell", "echo kill %s | su" % pid])
+                if signalId == None:
+                    self.runCmd(["shell", "echo kill %s | su" % pid])
+                else:
+                    self.runCmd(["shell", "echo kill -%i %s | su" % (signalId, pid)])
                 didKillProcess = True
         return didKillProcess
 
