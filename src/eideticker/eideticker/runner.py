@@ -5,10 +5,12 @@
 import datetime
 import mozprofile
 import os
+import tempfile
 import time
 import socket
 import subprocess
 import sys
+import zipfile
 
 from marionette import Marionette
 
@@ -120,18 +122,89 @@ class BrowserRunner(object):
         else:
             self.activity = activity_mappings[self.appname]
 
-    def get_profile(self):
+    def get_profile(self, targetFile):
         if self.isProfiling == False:
            raise Exception("Can't get profile if it isn't started with the profiling option")
 
-        #remove previous profiles if there is one
-        profile_path = "/tmp/sps_profile.txt"
+        filesToPackage = []
+
+        # create a temporary directory to place the profile and shared libraries
+        tmpDir = tempfile.mkdtemp()
+
+        # remove previous profiles if there is one
+        profile_path = os.path.join(tmpDir, "sps_profile.txt")
         if os.path.exists(profile_path):
             os.remove(profile_path)
 
         print "Fetching sps_profile.txt"
         self.dm.checkCmd(['pull', self.profileLocation, profile_path])
-        os.system("cat " + profile_path);
+        filesToPackage.append(profile_path);
+
+        zipFile = zipfile.ZipFile(targetFile, "w") 
+        for fileToPackage in filesToPackage:
+            print "File to zip: " + fileToPackage
+            zipFile.write(fileToPackage, os.path.basename(fileToPackage))
+
+    def get_profile_and_symbols(self, targetZip):
+        if self.isProfiling == False:
+           raise Exception("Can't get profile if it isn't started with the profiling option")
+
+        filesToPackage = []
+
+        # create a temporary directory to place the profile and shared libraries
+        tmpDir = tempfile.mkdtemp()
+
+        # remove previous profiles if there is one
+        profile_path = os.path.join(tmpDir, "sps_profile.txt")
+        if os.path.exists(profile_path):
+            os.remove(profile_path)
+
+        print "Fetching sps_profile.txt"
+        self.dm.checkCmd(['pull', self.profileLocation, profile_path])
+        filesToPackage.append(profile_path);
+
+        print "Fetching app symbols"
+        apk_path = os.path.join(tmpDir, "symbol.apk")
+        try:
+            self.dm.checkCmd(['pull', '/data/app/' + self.appname + '-1.apk', apk_path])
+            filesToPackage.append(apk_path);
+        except subprocess.CalledProcessError:
+            try:
+                self.dm.checkCmd(['pull', '/data/app/' + self.appname + '-2.apk', apk_path])
+                filesToPackage.append(apk_path);
+            except subprocess.CalledProcessError:
+                pass # We still get a useful profile without the symbols from the apk
+
+        # get all the symbols library for symbolication
+        print "Fetching system libraries"
+        libPaths = [ "/system/lib",
+                     "/system/lib/egl",
+                     "/system/lib/hw",
+                     "/system/vendor/lib",
+                     "/system/vendor/lib/egl",
+                     "/system/vendor/lib/hw",
+                     "/system/b2g" ]
+
+        for libPath in libPaths:
+             print "Fetching from: " + libPath
+             dirListStr = self.dm.runCmd(["shell", "ls", libPath]).stdout.read()
+             dirList = dirListStr.split('\n')
+             for fileName in dirList:
+                 fileName = fileName.strip()
+                 if fileName.endswith(".so"):
+                     try:
+                         lib_path = os.path.join(tmpDir, fileName)
+                         self.dm.checkCmd(['pull', libPath + '/' + fileName, lib_path])
+                         filesToPackage.append(lib_path);
+                     except subprocess.CalledProcessError:
+                         print "failed to fetch: " + fileName
+
+        zipFile = zipfile.ZipFile(targetZip, "w") 
+        for fileToPackage in filesToPackage:
+            print "File to zip: " + fileToPackage
+            zipFile.write(fileToPackage, os.path.basename(fileToPackage))
+        
+        os.system("ls " + tmpDir);     
 
     def start(self, isProfiling=False):
         print "Starting %s... " % self.appname
