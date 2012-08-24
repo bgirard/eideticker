@@ -65,9 +65,9 @@ class EidetickerMixin(object):
         retval = self.shell(args, buf)
         output = str(buf.getvalue()[0:-1]).rstrip()
         if retval == None:
-            raise Exception("Did not successfully run command %s (output: '%s')" % (args, output))
+            raise Exception("Did not successfully run command %s (output: '%s', retval: 'None')" % (args, output))
         if retval != 0:
-            raise Exception("Non-zero return code for command: %s (output: '%s')" % (args, output))
+            raise Exception("Non-zero return code for command: %s (output: '%s', retval: '%i')" % (args, output, retval))
         return output
 
     def _executeScript(self, events, executeCallback=None):
@@ -177,15 +177,26 @@ class DroidADB(mozdevice.DroidADB, EidetickerMixin):
         mozdevice.DroidADB.__init__(self, **kwargs)
         self._init() # custom eideticker init steps
 
-    def killProcess(self, appname, forceKill=False):
+    def killProcess(self, appname, signalId=None, forceKill=False):
         '''FIXME: Total hack, put this in devicemanagerADB instead'''
         procs = self.getProcessList()
         didKillProcess = False
         for (pid, name, user) in procs:
             if name == appname:
-                self.runCmd(["shell", "echo kill %s | su" % pid])
+                if signalId == None:
+                    self.runCmd(["shell", "echo kill %s | su" % pid])
+                else:
+                    self.runCmd(["shell", "echo kill -%i %s | su" % (signalId, pid)])
                 didKillProcess = True
         return didKillProcess
+
+    def getPID(self, appname):
+        '''FIXME: Total hack, put this in devicemanagerADB instead'''
+        procs = self.getProcessList()
+        for (pid, name, user) in procs:
+            if name == appname:
+                return pid
+        return None
 
     @property
     def dimensions(self):

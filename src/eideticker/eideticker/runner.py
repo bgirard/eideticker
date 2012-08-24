@@ -120,7 +120,20 @@ class BrowserRunner(object):
         else:
             self.activity = activity_mappings[self.appname]
 
-    def start(self):
+    def get_profile(self):
+        if self.isProfiling == False:
+           raise Exception("Can't get profile if it isn't started with the profiling option")
+
+        #remove previous profiles if there is one
+        profile_path = "/tmp/sps_profile.txt"
+        if os.path.exists(profile_path):
+            os.remove(profile_path)
+
+        print "Fetching sps_profile.txt"
+        self.dm.checkCmd(['pull', self.profileLocation, profile_path])
+        os.system("cat " + profile_path);
+
+    def start(self, isProfiling=False):
         print "Starting %s... " % self.appname
 
         # for fennec only, we create and use a profile
@@ -135,12 +148,18 @@ class BrowserRunner(object):
             if not self.dm.pushDir(profile.profile, self.remote_profile_dir):
                 raise Exception("Failed to copy profile to device")
 
+            self.isProfiling = isProfiling
+            if self.isProfiling == True:
+                mozEnv = { "MOZ_PROFILER_STARTUP": "true" }
+            else:
+                mozEnv = None
+
             args.extend(["-profile", self.remote_profile_dir])
 
             # sometimes fennec fails to start, so we'll try three times...
             for i in range(3):
                 print "Launching fennec (try %s of 3)" % (i+1)
-                if self.dm.launchFennec(self.appname, url=self.url, extraArgs=args):
+                if self.dm.launchFennec(self.appname, url=self.url, mozEnv=mozEnv, extraArgs=args):
                     return
             raise Exception("Failed to start Fennec after three tries")
         else:
@@ -148,6 +167,14 @@ class BrowserRunner(object):
                                       url=self.url)
 
     def stop(self):
+        # Dump the profile
+        if self.isProfiling == True:
+            print "Saving sps performance profile"
+            self.dm.killProcess(self.appname, signalId=12)
+            self.profileLocation = "/sdcard/profile_0_" + self.dm.getPID(self.appname) + ".txt"
+            # Saving goes through the main event loop so give it time to flush
+            time.sleep(10)
+
         self.dm.killProcess(self.appname)
         if not self.dm.removeDir(self.remote_profile_dir):
             print "WARNING: Failed to remove profile (%s) from device" % self.remote_profile_dir
