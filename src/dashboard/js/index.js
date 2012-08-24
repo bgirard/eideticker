@@ -49,11 +49,21 @@ function updateGraph(rawdata, measure) {
       data: []
     };
 
+
+    var prevRevision = null;
     Object.keys(rawdata[type]).sort().forEach(function(datestr) {
       rawdata[type][datestr].forEach(function(sample) {
         series1.data.push([ parseDate(datestr), sample[measure] ]);
-        metadataHash[seriesIndex].push({'videoURL': sample.video, 'dateStr': datestr, 'appDate': sample.appdate, 'revision': sample.revision, 'buildId': sample.buildid });
+        metadataHash[seriesIndex].push({
+          'videoURL': sample.video,
+          'dateStr': datestr,
+          'appDate': sample.appdate,
+          'revision': sample.revision,
+          'prevRevision': prevRevision,
+          'buildId': sample.buildid
+        });
       });
+      prevRevision = rawdata[type][datestr][0].revision;
     });
     graphdata.push(series1);
 
@@ -168,6 +178,7 @@ function updateGraph(rawdata, measure) {
                                                      'date': metadata.dateStr,
                                                      'appDate': metadata.appDate,
                                                      'revision': metadata.revision,
+                                                     'prevRevision': metadata.prevRevision,
                                                      'buildId': metadata.buildId,
                                                      'measureValue': Math.round(100.0*item.datapoint[1])/100.0
                                                    }));
