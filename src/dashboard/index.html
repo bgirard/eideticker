@@ -155,6 +155,10 @@
         <dt>Revision</dt>
         <dd><a href="http://hg.mozilla.org/mozilla-central/rev/{{revision}}">{{revision}}</a></dd>
         {{/revision}}
+        {{#prevRevision}}
+        <dt>Pushlog</dt>
+        <dd><a href="https://hg.mozilla.org/mozilla-central/pushloghtml?fromchange={{prevRevision}}&tochange={{revision}}">{{prevRevision}} -> {{revision}}</a></dd>
+        {{/prevRevision}}
         {{#buildId}}
         <dt>Build Id</dt>
         <dd>{{buildId}}</dd>
