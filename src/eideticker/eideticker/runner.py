@@ -132,11 +132,11 @@ class BrowserRunner(object):
         tmpDir = tempfile.mkdtemp()
 
         # remove previous profiles if there is one
-        profile_path = os.path.join(tmpDir, "sps_profile.txt")
+        profile_path = os.path.join(tmpDir, "fennec_profile.txt")
         if os.path.exists(profile_path):
             os.remove(profile_path)
 
-        print "Fetching sps_profile.txt"
+        print "Fetching fennec_profile.txt"
         self.dm.checkCmd(['pull', self.profileLocation, profile_path])
         filesToPackage.append(profile_path);
 
@@ -155,11 +155,11 @@ class BrowserRunner(object):
         tmpDir = tempfile.mkdtemp()
 
         # remove previous profiles if there is one
-        profile_path = os.path.join(tmpDir, "sps_profile.txt")
+        profile_path = os.path.join(tmpDir, "fennec_profile.txt")
         if os.path.exists(profile_path):
             os.remove(profile_path)
 
-        print "Fetching sps_profile.txt"
+        print "Fetching fennec_profile.txt"
         self.dm.checkCmd(['pull', self.profileLocation, profile_path])
         filesToPackage.append(profile_path);
 
