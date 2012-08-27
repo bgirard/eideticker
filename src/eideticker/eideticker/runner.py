@@ -206,7 +206,7 @@ class BrowserRunner(object):
         
         os.system("ls " + tmpDir);     
 
-    def start(self, isProfiling=False):
+    def start(self, profileFile=None):
         print "Starting %s... " % self.appname
 
         # for fennec only, we create and use a profile
@@ -221,8 +221,9 @@ class BrowserRunner(object):
             if not self.dm.pushDir(profile.profile, self.remote_profile_dir):
                 raise Exception("Failed to copy profile to device")
 
-            self.isProfiling = isProfiling
+            self.isProfiling = profileFile != None
             if self.isProfiling == True:
+                self.profileFile = profileFile
                 mozEnv = { "MOZ_PROFILER_STARTUP": "true" }
             else:
                 mozEnv = None
@@ -249,5 +250,10 @@ class BrowserRunner(object):
             time.sleep(10)
 
         self.dm.killProcess(self.appname)
+
+        # Process the profile
+        if self.isProfiling == True:
+            self.get_profile_and_symbols(self.profileFile)
+
         if not self.dm.removeDir(self.remote_profile_dir):
             print "WARNING: Failed to remove profile (%s) from device" % self.remote_profile_dir
