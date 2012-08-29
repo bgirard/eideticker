@@ -143,7 +143,15 @@
 
   <script id="graphDatapoint" type="text/html">
     <div class="span2 well">
-      <video id="video" src="{{videoURL}}" controls></video>
+      <div id="videoContainer" class="well">
+        <div><input id="videoControlClose" class="videoControl" type="button" value="Close" style="float: right;"></input></div>
+        <video id="video" src="{{videoURL}}" controls></video>
+        <div>
+          <input id="videoControlPrevFrame" class="videoControl" type="button" value="Prev Frame">
+          <input id="videoControlPause" class="videoControl" type="button" value="Pause">
+          <input id="videoControlNextFrame" class="videoControl" type="button" value="Next Frame">
+        </div>
+      </div>
       <dl>
         <dt>Test Date</dt>
         <dd>{{date}}</dd>

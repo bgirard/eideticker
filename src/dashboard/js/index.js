@@ -182,16 +182,35 @@ function updateGraph(rawdata, measure) {
                                                      'buildId': metadata.buildId,
                                                      'measureValue': Math.round(100.0*item.datapoint[1])/100.0
                                                    }));
-      $('#video').css('width', $('#video').parent().width());
-      $('#video').css('float', 'right');
+      $('#videoContainer').css('position', 'relative');
+      $('#videoContainer').css('z-index', '2');
+      $('#videoContainer').css('float', 'right');
+      $('#video').css('width', $('#video').parent().parent().width());
       $('#video').css('position', 'relative');
       $('#video').css('background-color', 'black');
+      $('.videoControl').hide();
       $('#video').focus(function() {
-        $('#video').css('width', $('#video').parent().width());
-        $('#video').animate({ width: 600}, 1000);
+        $('#videoContainer').css('width', $('#video').parent().width());
+        $('#videoContainer').animate({ width: 600}, 1000);
+        $('#video').css('width', '');
+        $('.videoControl').show();
       });
-      $('#video').blur(function() {
-        $('#video').animate({ width: $('#video').parent().width()}, 1000);
+      $('#videoControlClose').click(function() {
+        $('#videoContainer').stop();
+        $('#videoContainer').css('width', '');
+        $('#video').css('width', $('#video').parent().parent().width());
+        $('.videoControl').hide();
+      });
+
+      // Controls
+      $('#videoControlPause').click(function() {
+        $('#video').get(0).pause();
+      });
+      $('#videoControlPrevFrame').click(function() {
+        seekFrame($('#video').get(0), -1, 60);
+      });
+      $('#videoControlNextFrame').click(function() {
+        seekFrame($('#video').get(0), 1, 60);
       });
 
       plot.highlight(item.series, item.datapoint);
@@ -199,6 +218,16 @@ function updateGraph(rawdata, measure) {
       $('#datapoint-info').html(null);
     }
   });
+}
+
+function seekFrame(video, deltaFrame, fps) {
+  if (video.paused == false) {
+    video.pause();
+  }
+
+  var currentFrames = video.currentTime * fps;
+  var newPos = (currentFrames + deltaFrame) / fps;
+  video.currentTime = newPos;
 }
 
 $(function() {
