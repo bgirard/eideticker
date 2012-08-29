@@ -122,8 +122,8 @@ class BrowserRunner(object):
         else:
             self.activity = activity_mappings[self.appname]
 
-    def get_profile(self, targetFile):
-        if self.isProfiling == False:
+    def get_profile(self, target_file):
+        if self.is_profiling == False:
            raise Exception("Can't get profile if it isn't started with the profiling option")
 
         filesToPackage = []
@@ -140,13 +140,13 @@ class BrowserRunner(object):
         self.dm.checkCmd(['pull', self.profileLocation, profile_path])
         filesToPackage.append(profile_path);
 
-        zipFile = zipfile.ZipFile(targetFile, "w") 
+        zipFile = zipfile.ZipFile(target_file, "w") 
         for fileToPackage in filesToPackage:
             print "File to zip: " + fileToPackage
             zipFile.write(fileToPackage, os.path.basename(fileToPackage))
 
-    def get_profile_and_symbols(self, targetZip):
-        if self.isProfiling == False:
+    def get_profile_and_symbols(self, target_zip):
+        if self.is_profiling == False:
            raise Exception("Can't get profile if it isn't started with the profiling option")
 
         filesToPackage = []
@@ -199,7 +199,7 @@ class BrowserRunner(object):
                      except subprocess.CalledProcessError:
                          print "failed to fetch: " + fileName
 
-        zipFile = zipfile.ZipFile(targetZip, "w") 
+        zipFile = zipfile.ZipFile(target_zip, "w") 
         for fileToPackage in filesToPackage:
             print "File to zip: " + fileToPackage
             zipFile.write(fileToPackage, os.path.basename(fileToPackage))
@@ -221,8 +221,8 @@ class BrowserRunner(object):
             if not self.dm.pushDir(profile.profile, self.remote_profile_dir):
                 raise Exception("Failed to copy profile to device")
 
-            self.isProfiling = profileFile != None
-            if self.isProfiling == True:
+            self.is_profiling = profileFile != None
+            if self.is_profiling:
                 self.profileFile = profileFile
                 mozEnv = { "MOZ_PROFILER_STARTUP": "true" }
             else:
@@ -242,7 +242,7 @@ class BrowserRunner(object):
 
     def stop(self):
         # Dump the profile
-        if self.isProfiling == True:
+        if self.is_profiling:
             print "Saving sps performance profile"
             self.dm.killProcess(self.appname, signalId=12)
             self.profileLocation = "/sdcard/profile_0_" + self.dm.getPID(self.appname) + ".txt"
@@ -252,7 +252,7 @@ class BrowserRunner(object):
         self.dm.killProcess(self.appname)
 
         # Process the profile
-        if self.isProfiling == True:
+        if self.is_profiling:
             self.get_profile_and_symbols(self.profileFile)
 
         if not self.dm.removeDir(self.remote_profile_dir):
