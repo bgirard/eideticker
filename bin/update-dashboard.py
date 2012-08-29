@@ -69,10 +69,24 @@ def kill_app(dm, appname):
       if name == appname:
         dm.runCmd(["shell", "echo kill %s | su" % pid])
 
+def symbolicateProfilePackage(profile_package, profile_path, profile_file)
+    retval = subprocess.call(["./symbolicate.sh",
+                              os.path.abspath(profile_package), os.path.abspath(profile_file)],
+                              cwd="../src/GeckoProfilerAddon")
+    if retval == 0:
+        return profile_path
+    else:
+        return None
+
 def runtest(dm, product, current_date, appname, appinfo, test, capture_name,
             outputdir, datafile, data):
     capture_file = os.path.join(CAPTURE_DIR,
                                 "%s-%s-%s-%s.zip" % (test['name'],
+                                                     appname,
+                                                     appinfo.get('date'),
+                                                     int(time.time())))
+    profile_package = os.path.join(CAPTURE_DIR,
+                                "profile-package-%s-%s-%s-%s.zip" % (test['name'],
                                                      appname,
                                                      appinfo.get('date'),
                                                      int(time.time())))
@@ -85,6 +99,7 @@ def runtest(dm, product, current_date, appname, appinfo, test, capture_name,
         retval = subprocess.call(["runtest.py", "--url-params", urlparams,
                                   "--name", capture_name,
                                   "--capture-file", capture_file,
+                                  "--profile-file", profile_package,
                                   appname, test['path']])
         if retval == 0:
             test_completed = True
@@ -104,6 +119,13 @@ def runtest(dm, product, current_date, appname, appinfo, test, capture_name,
     video_file = os.path.join(outputdir, video_path)
     open(video_file, 'w').write(capture.get_video().read())
 
+    #  profile file
+    if profile_package:
+        profile_path = os.path.join('profiles', 'sps-profile-%s.zip' % time.time())
+        profile_file = os.path.join(outputdir, profile_path)
+        profile_path = symbolicateProfilePackage(profile_package, profile_path, profile_file) 
+        os.remove(profile_package)
+
     # frames-per-second / num unique frames
     num_unique_frames = videocapture.get_num_unique_frames(capture)
     fps = videocapture.get_fps(capture)
@@ -122,6 +144,7 @@ def runtest(dm, product, current_date, appname, appinfo, test, capture_name,
                   'checkerboard': checkerboard,
                   'uniqueframes': num_unique_frames,
                   'video': video_path,
+                  'profile': profile_path,
                   'appdate': appinfo.get('date'),
                   'buildid': appinfo.get('buildid'),
                   'revision': appinfo.get('revision') }
@@ -138,6 +161,8 @@ def main(args=sys.argv[1:]):
     parser.add_option("--no-download",
                       action="store_true", dest = "no_download",
                       help = "Don't download new versions of the app")
+    parser.add_option("--device-id", action="store", dest="device_id",
+                      help="id of device (used in output json)")
     parser.add_option("--product",
                       action="store", dest="product",
                       help = "Restrict testing to product (options: %s)" %
@@ -162,6 +187,13 @@ def main(args=sys.argv[1:]):
     else:
         test = [test for test in default_tests if test['name'] == testname][0]
 
+    device_id = options.device_id
+    if not device_id:
+        device_id = os.environ.get('DEVICE_ID')
+    if not device_id:
+        print "ERROR: Must specify device id (either with --device-id or with DEVICE_ID environment variable)"
+        sys.exit(1)
+
     products = default_products
     if options.product:
         products = [product for product in default_products if product['name'] == options.product]
@@ -170,13 +202,23 @@ def main(args=sys.argv[1:]):
             sys.exit(1)
 
     current_date = time.strftime("%Y-%m-%d")
-    datafile = os.path.join(outputdir, 'data.json')
+    datafile = os.path.join(outputdir, 'data-%s.json' % device_id)
 
     data = NestedDict()
     if os.path.isfile(datafile):
         data.update(json.loads(open(datafile).read()))
 
     device = eideticker.getDevice(options)
+
+    # update the device list for the dashboard
+    devices = {}
+    devicefile = os.path.join(outputdir, 'devices.json')
+    if os.path.isfile(devicefile):
+        devices = json.loads(open(devicefile).read())['devices']
+    devices[device_id] = { 'name': device.model,
+                           'version': device.getprop('ro.build.version.release') }
+    with open(devicefile, 'w') as f:
+        f.write(json.dumps({ 'devices': devices }))
 
     for product in products:
         if product.get('url'):

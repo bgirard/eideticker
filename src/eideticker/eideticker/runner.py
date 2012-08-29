@@ -5,10 +5,12 @@
 import datetime
 import mozprofile
 import os
+import tempfile
 import time
 import socket
 import subprocess
 import sys
+import zipfile
 
 from marionette import Marionette
 
@@ -120,20 +122,101 @@ class BrowserRunner(object):
         else:
             self.activity = activity_mappings[self.appname]
 
-    def get_profile(self):
-        if self.isProfiling == False:
+    def get_profile(self, target_file):
+        if self.is_profiling == False:
            raise Exception("Can't get profile if it isn't started with the profiling option")
 
-        #remove previous profiles if there is one
-        profile_path = "/tmp/sps_profile.txt"
+        files_to_package = []
+
+        # create a temporary directory to place the profile and shared libraries
+        tmpdir = tempfile.mkdtemp()
+
+        # remove previous profiles if there is one
+        profile_path = os.path.join(tmpdir, "fennec_profile.txt")
         if os.path.exists(profile_path):
             os.remove(profile_path)
 
-        print "Fetching sps_profile.txt"
-        self.dm.checkCmd(['pull', self.profileLocation, profile_path])
-        os.system("cat " + profile_path);
+        print "Fetching fennec_profile.txt"
+        self.dm.getFile(self.profile_location, profile_path)
+        files_to_package.append(profile_path);
 
-    def start(self, isProfiling=False):
+        with zipfile.ZipFile(target_file, "w") as zip_file:
+            for file_to_package in files_to_package:
+                print "File to zip: " + file_to_package
+                zip_file.write(file_to_package, os.path.basename(file_to_package))
+
+    def get_profile_and_symbols(self, target_zip):
+        if self.is_profiling == False:
+           raise Exception("Can't get profile if it isn't started with the profiling option")
+
+        files_to_package = []
+
+        # create a temporary directory to place the profile and shared libraries
+        tmpdir = tempfile.mkdtemp()
+
+        # remove previous profiles if there is one
+        profile_path = os.path.join(tmpdir, "fennec_profile.txt")
+        if os.path.exists(profile_path):
+            os.remove(profile_path)
+
+        print "Fetching fennec_profile.txt"
+        self.dm.getFile(self.profile_location, profile_path)
+        files_to_package.append(profile_path);
+
+        print "Fetching app symbols"
+        apk_path = os.path.join(tmpdir, "symbol.apk")
+        try:
+            result = self.dm.getFile('/data/app/' + self.appname + '-1.apk', apk_path)
+            if result != None:
+                files_to_package.append(apk_path);
+            else:
+                # This is nasty repetition. We can either return a None result
+                # or throw subprocess.CalledProcessError.
+                try:
+                    result = self.dm.getFile('/data/app/' + self.appname + '-2.apk', apk_path)
+                    if result != None:
+                        files_to_package.append(apk_path);
+                    else:
+                        print "Warning: could not get the apk"
+                except subprocess.CalledProcessError:
+                    pass # We still get a useful profile without the symbols from the apk
+        except subprocess.CalledProcessError:
+            try:
+                self.dm.getFile('/data/app/' + self.appname + '-2.apk', apk_path)
+                files_to_package.append(apk_path);
+            except subprocess.CalledProcessError:
+                pass # We still get a useful profile without the symbols from the apk
+
+        # get all the symbols library for symbolication
+        print "Fetching system libraries"
+        libpaths = [ "/system/lib",
+                     "/system/lib/egl",
+                     "/system/lib/hw",
+                     "/system/vendor/lib",
+                     "/system/vendor/lib/egl",
+                     "/system/vendor/lib/hw",
+                     "/system/b2g" ]
+
+        for libpath in libpaths:
+             print "Fetching from: " + libpath
+             dirlist = self.dm.listFiles(libpath)
+             for filename in dirlist:
+                 filename = filename.strip()
+                 if filename.endswith(".so"):
+                     try:
+                         lib_path = os.path.join(tmpdir, filename)
+                         results = self.dm.getFile(libpath + '/' + filename, lib_path)
+                         if results != None:
+                             files_to_package.append(lib_path);
+                     except subprocess.CalledProcessError:
+                         print "failed to fetch: " + fileName
+
+        with zipfile.ZipFile(target_zip, "w") as zip_file:
+            for file_to_package in files_to_package:
+                print "File to zip: " + file_to_package
+                zip_file.write(file_to_package, os.path.basename(file_to_package))
+
+    def start(self, profile_file=None):
         print "Starting %s... " % self.appname
 
         # for fennec only, we create and use a profile
@@ -148,8 +231,9 @@ class BrowserRunner(object):
             if not self.dm.pushDir(profile.profile, self.remote_profile_dir):
                 raise Exception("Failed to copy profile to device")
 
-            self.isProfiling = isProfiling
-            if self.isProfiling == True:
+            self.is_profiling = profile_file != None
+            if self.is_profiling:
+                self.profile_file = profile_file
                 mozEnv = { "MOZ_PROFILER_STARTUP": "true" }
             else:
                 mozEnv = None
@@ -168,13 +252,18 @@ class BrowserRunner(object):
 
     def stop(self):
         # Dump the profile
-        if self.isProfiling == True:
+        if self.is_profiling:
             print "Saving sps performance profile"
             self.dm.killProcess(self.appname, signalId=12)
-            self.profileLocation = "/sdcard/profile_0_" + self.dm.getPID(self.appname) + ".txt"
+            self.profile_location = "/sdcard/profile_0_" + self.dm.getPIDs(self.appname)[0] + ".txt"
             # Saving goes through the main event loop so give it time to flush
             time.sleep(10)
 
         self.dm.killProcess(self.appname)
+
+        # Process the profile
+        if self.is_profiling:
+            self.get_profile_and_symbols(self.profile_file)
+
         if not self.dm.removeDir(self.remote_profile_dir):
             print "WARNING: Failed to remove profile (%s) from device" % self.remote_profile_dir
