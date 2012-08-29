@@ -126,58 +126,58 @@ class BrowserRunner(object):
         if self.is_profiling == False:
            raise Exception("Can't get profile if it isn't started with the profiling option")
 
-        filesToPackage = []
+        files_to_package = []
 
         # create a temporary directory to place the profile and shared libraries
-        tmpDir = tempfile.mkdtemp()
+        tmpdir = tempfile.mkdtemp()
 
         # remove previous profiles if there is one
-        profile_path = os.path.join(tmpDir, "fennec_profile.txt")
+        profile_path = os.path.join(tmpdir, "fennec_profile.txt")
         if os.path.exists(profile_path):
             os.remove(profile_path)
 
         print "Fetching fennec_profile.txt"
-        self.dm.checkCmd(['pull', self.profileLocation, profile_path])
-        filesToPackage.append(profile_path);
+        self.dm.getFile(self.profile_location, profile_path)
+        files_to_package.append(profile_path);
 
-        zipFile = zipfile.ZipFile(target_file, "w") 
-        for fileToPackage in filesToPackage:
-            print "File to zip: " + fileToPackage
-            zipFile.write(fileToPackage, os.path.basename(fileToPackage))
+        with zipfile.ZipFile(target_file, "w") as zipfile:
+            for file_to_package in files_to_package:
+                print "File to zip: " + file_to_package
+                zipfile.write(file_to_package, os.path.basename(file_to_package))
 
     def get_profile_and_symbols(self, target_zip):
         if self.is_profiling == False:
            raise Exception("Can't get profile if it isn't started with the profiling option")
 
-        filesToPackage = []
+        files_to_package = []
 
         # create a temporary directory to place the profile and shared libraries
-        tmpDir = tempfile.mkdtemp()
+        tmpdir = tempfile.mkdtemp()
 
         # remove previous profiles if there is one
-        profile_path = os.path.join(tmpDir, "fennec_profile.txt")
+        profile_path = os.path.join(tmpdir, "fennec_profile.txt")
         if os.path.exists(profile_path):
             os.remove(profile_path)
 
         print "Fetching fennec_profile.txt"
-        self.dm.checkCmd(['pull', self.profileLocation, profile_path])
-        filesToPackage.append(profile_path);
+        self.dm.getFile(self.profile_location, profile_path)
+        files_to_package.append(profile_path);
 
         print "Fetching app symbols"
         apk_path = os.path.join(tmpDir, "symbol.apk")
         try:
-            self.dm.checkCmd(['pull', '/data/app/' + self.appname + '-1.apk', apk_path])
-            filesToPackage.append(apk_path);
+            self.dm.getFile('/data/app/' + self.appname + '-1.apk', apk_path)
+            files_to_package.append(apk_path);
         except subprocess.CalledProcessError:
             try:
-                self.dm.checkCmd(['pull', '/data/app/' + self.appname + '-2.apk', apk_path])
-                filesToPackage.append(apk_path);
+                self.dm.getFile('/data/app/' + self.appname + '-2.apk', apk_path)
+                files_to_package.append(apk_path);
             except subprocess.CalledProcessError:
                 pass # We still get a useful profile without the symbols from the apk
 
         # get all the symbols library for symbolication
         print "Fetching system libraries"
-        libPaths = [ "/system/lib",
+        libpaths = [ "/system/lib",
                      "/system/lib/egl",
                      "/system/lib/hw",
                      "/system/vendor/lib",
@@ -185,28 +185,27 @@ class BrowserRunner(object):
                      "/system/vendor/lib/hw",
                      "/system/b2g" ]
 
-        for libPath in libPaths:
+        for libpath in libpaths:
              print "Fetching from: " + libPath
-             dirListStr = self.dm.runCmd(["shell", "ls", libPath]).stdout.read()
-             dirList = dirListStr.split('\n')
-             for fileName in dirList:
-                 fileName = fileName.strip()
-                 if fileName.endswith(".so"):
+             dirlist = self.dm.listFiles(libpath)
+             for filename in dirlist:
+                 filename = filename.strip()
+                 if filename.endswith(".so"):
                      try:
-                         lib_path = os.path.join(tmpDir, fileName)
-                         self.dm.checkCmd(['pull', libPath + '/' + fileName, lib_path])
+                         lib_path = os.path.join(tmpdir, filename)
+                         self.dm.getFile(libpath + '/' + filename, lib_path)
                          filesToPackage.append(lib_path);
                      except subprocess.CalledProcessError:
                          print "failed to fetch: " + fileName
 
-        zipFile = zipfile.ZipFile(target_zip, "w") 
-        for fileToPackage in filesToPackage:
-            print "File to zip: " + fileToPackage
-            zipFile.write(fileToPackage, os.path.basename(fileToPackage))
+        with zipfile.ZipFile(target_zip, "w") as zipfile:
+        for file_to_package in files_to_package:
+            print "File to zip: " + file_to_package
+            zipfile.write(file_to_package, os.path.basename(file_to_package))
         
-        os.system("ls " + tmpDir);     
+        os.system("ls " + tmpdir);     
 
-    def start(self, profileFile=None):
+    def start(self, profile_file=None):
         print "Starting %s... " % self.appname
 
         # for fennec only, we create and use a profile
@@ -221,9 +220,9 @@ class BrowserRunner(object):
             if not self.dm.pushDir(profile.profile, self.remote_profile_dir):
                 raise Exception("Failed to copy profile to device")
 
-            self.is_profiling = profileFile != None
+            self.is_profiling = profile_file != None
             if self.is_profiling:
-                self.profileFile = profileFile
+                self.profile_file = profile_file
                 mozEnv = { "MOZ_PROFILER_STARTUP": "true" }
             else:
                 mozEnv = None
@@ -245,7 +244,7 @@ class BrowserRunner(object):
         if self.is_profiling:
             print "Saving sps performance profile"
             self.dm.killProcess(self.appname, signalId=12)
-            self.profileLocation = "/sdcard/profile_0_" + self.dm.getPIDs(self.appname)[0] + ".txt"
+            self.profile_location = "/sdcard/profile_0_" + self.dm.getPIDs(self.appname)[0] + ".txt"
             # Saving goes through the main event loop so give it time to flush
             time.sleep(10)
 
@@ -253,7 +252,7 @@ class BrowserRunner(object):
 
         # Process the profile
         if self.is_profiling:
-            self.get_profile_and_symbols(self.profileFile)
+            self.get_profile_and_symbols(self.profile_file)
 
         if not self.dm.removeDir(self.remote_profile_dir):
             print "WARNING: Failed to remove profile (%s) from device" % self.remote_profile_dir
