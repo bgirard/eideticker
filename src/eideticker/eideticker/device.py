@@ -190,12 +190,12 @@ class DroidADB(mozdevice.DroidADB, EidetickerMixin):
                 didKillProcess = True
         return didKillProcess
 
-    def getPID(self, appname):
+    def getPIDs(self, appname):
         '''FIXME: Total hack, put this in devicemanagerADB instead'''
         procs = self.getProcessList()
         for (pid, name, user) in procs:
             if name == appname:
-                return pid
+                return [pid]
         return None
 
     @property

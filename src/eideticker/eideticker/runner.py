@@ -245,7 +245,7 @@ class BrowserRunner(object):
         if self.is_profiling:
             print "Saving sps performance profile"
             self.dm.killProcess(self.appname, signalId=12)
-            self.profileLocation = "/sdcard/profile_0_" + self.dm.getPID(self.appname) + ".txt"
+            self.profileLocation = "/sdcard/profile_0_" + self.dm.getPIDs(self.appname)[0] + ".txt"
             # Saving goes through the main event loop so give it time to flush
             time.sleep(10)
 
