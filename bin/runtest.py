@@ -262,7 +262,7 @@ def main(args=sys.argv[1:]):
     if options.startup_test and not options.no_capture:
         capture_controller.start_capture(capture_file, device.hdmiResolution,
                                          capture_metadata)
-    runner.start(profileFile=options.profile_file)
+    runner.start(profile_file=options.profile_file)
 
     # Keep on capturing until we timeout
     if capture_timeout:

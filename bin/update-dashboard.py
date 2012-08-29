@@ -120,7 +120,7 @@ def runtest(dm, product, current_date, appname, appinfo, test, capture_name,
     open(video_file, 'w').write(capture.get_video().read())
 
     #  profile file
-    if profile_package != None:
+    if profile_package:
         profile_path = os.path.join('profiles', 'sps-profile-%s.zip' % time.time())
         profile_file = os.path.join(outputdir, profile_path)
         profile_path = symbolicateProfilePackage(profile_package, profile_path, profile_file) 

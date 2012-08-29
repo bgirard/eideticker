@@ -140,10 +140,10 @@ class BrowserRunner(object):
         self.dm.getFile(self.profile_location, profile_path)
         files_to_package.append(profile_path);
 
-        with zipfile.ZipFile(target_file, "w") as zipfile:
+        with zipfile.ZipFile(target_file, "w") as zip_file:
             for file_to_package in files_to_package:
                 print "File to zip: " + file_to_package
-                zipfile.write(file_to_package, os.path.basename(file_to_package))
+                zip_file.write(file_to_package, os.path.basename(file_to_package))
 
     def get_profile_and_symbols(self, target_zip):
         if self.is_profiling == False:
@@ -164,10 +164,22 @@ class BrowserRunner(object):
         files_to_package.append(profile_path);
 
         print "Fetching app symbols"
-        apk_path = os.path.join(tmpDir, "symbol.apk")
+        apk_path = os.path.join(tmpdir, "symbol.apk")
         try:
-            self.dm.getFile('/data/app/' + self.appname + '-1.apk', apk_path)
-            files_to_package.append(apk_path);
+            result = self.dm.getFile('/data/app/' + self.appname + '-1.apk', apk_path)
+            if result != None:
+                files_to_package.append(apk_path);
+            else:
+                # This is nasty repetition. We can either return a None result
+                # or throw subprocess.CalledProcessError.
+                try:
+                    result = self.dm.getFile('/data/app/' + self.appname + '-2.apk', apk_path)
+                    if result != None:
+                        files_to_package.append(apk_path);
+                    else:
+                        print "Warning: could not get the apk"
+                except subprocess.CalledProcessError:
+                    pass # We still get a useful profile without the symbols from the apk
         except subprocess.CalledProcessError:
             try:
                 self.dm.getFile('/data/app/' + self.appname + '-2.apk', apk_path)
@@ -186,24 +198,23 @@ class BrowserRunner(object):
                      "/system/b2g" ]
 
         for libpath in libpaths:
-             print "Fetching from: " + libPath
+             print "Fetching from: " + libpath
              dirlist = self.dm.listFiles(libpath)
              for filename in dirlist:
                  filename = filename.strip()
                  if filename.endswith(".so"):
                      try:
                          lib_path = os.path.join(tmpdir, filename)
-                         self.dm.getFile(libpath + '/' + filename, lib_path)
-                         filesToPackage.append(lib_path);
+                         results = self.dm.getFile(libpath + '/' + filename, lib_path)
+                         if results != None:
+                             files_to_package.append(lib_path);
                      except subprocess.CalledProcessError:
                          print "failed to fetch: " + fileName
 
-        with zipfile.ZipFile(target_zip, "w") as zipfile:
-        for file_to_package in files_to_package:
-            print "File to zip: " + file_to_package
-            zipfile.write(file_to_package, os.path.basename(file_to_package))
-        
-        os.system("ls " + tmpdir);     
+        with zipfile.ZipFile(target_zip, "w") as zip_file:
+            for file_to_package in files_to_package:
+                print "File to zip: " + file_to_package
+                zip_file.write(file_to_package, os.path.basename(file_to_package))
 
     def start(self, profile_file=None):
         print "Starting %s... " % self.appname
