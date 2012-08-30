@@ -151,6 +151,15 @@
           <input id="videoControlPause" class="videoControl" type="button" value="Pause">
           <input id="videoControlNextFrame" class="videoControl" type="button" value="Next Frame">
         </div>
+        <div class="videoControl">
+          Frame: <span id="videoLabelFrame"></span><br>
+          Checkerboard Pixels: <span id="videoLabelPixels"></span><br>
+          Mouse location: <span id="videoLabelMouse"></span><br>
+          <canvas id="videoLabelMouseOver" width="50" height="50" style="float:left;"></canvas>
+          R: <span id="videoLabelMouseR"></span><br>
+          G: <span id="videoLabelMouseG"></span><br>
+          B: <span id="videoLabelMouseB"></span><br>
+        </div>
       </div>
       <dl>
         <dt>Test Date</dt>

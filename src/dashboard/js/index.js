@@ -202,6 +202,17 @@ function updateGraph(rawdata, measure) {
         $('.videoControl').hide();
       });
 
+      $("#video").mousemove(function(e){
+        var offset = $(this).offset();
+        lastVideoX = Math.floor(e.pageX - offset.left);
+        lastVideoY = Math.floor(e.pageY - offset.top);
+        updateVideoLabel();
+      });
+
+      $("#video").bind("timeupdate", function() {
+        updateVideoLabel();
+      });
+
       // Controls
       $('#videoControlPause').click(function() {
         $('#video').get(0).pause();
@@ -220,6 +231,84 @@ function updateGraph(rawdata, measure) {
   });
 }
 
+var lastVideoX = null;
+var lastVideoY = null; 
+var canvas = null;
+function updateVideoLabel() {
+  var video = $('#video').get(0);
+  var currentFrame = Math.round(video.currentTime * 60);
+  $('#videoLabelFrame').text(currentFrame);
+
+  if (!canvas || canvas.width != video.videoWidth || canvas.height != video.videoHeight) {
+    canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+  }
+  var ctx = canvas.getContext("2d");
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  var frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  var l = frame.data.length / 4;
+  var pixels = 0;
+  for (var i = 0; i < l; i++) {
+    var r = frame.data[i * 4 + 0];
+    var g = frame.data[i * 4 + 1];
+    var b = frame.data[i * 4 + 2];
+    // This is really nasty but because of the compression
+    // the magic color can be anywhere within this range :(
+    if (r >= 250 && g === 0 && b >= 250) {
+      pixels++;
+    }
+  }
+  $('#videoLabelPixels').text(pixels);
+  $('#videoLabelMouse').text(lastVideoX + "," + lastVideoY);
+
+  // Update mouse over canvas
+  var mouseOverCanvas = $("#videoLabelMouseOver").get(0);
+  if (true || mouseOverCanvas.lastVideoX !== lastVideoX ||
+      mouseOverCanvas.lastVideoY !== lastVideoY) {
+    var mouseOverCtx = mouseOverCanvas.getContext("2d");
+    mouseOverCtx.clearRect(0, 0, canvas.width, canvas.height);
+    var posX = 0;
+    var posY = 0;
+    $('#videoLabelMouseR').text("");
+    $('#videoLabelMouseG').text("");
+    $('#videoLabelMouseB').text("");
+    for (var x = lastVideoX - 2; x <= lastVideoX + 2; x++) {
+      for (var y = lastVideoY - 2; y <= lastVideoY + 2; y++) {
+        if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+          mouseOverCtx.beginPath();
+          mouseOverCtx.moveTo(posX * 10, posY * 10);
+          mouseOverCtx.lineTo(posX * 10 + 9, posY * 10);
+          mouseOverCtx.lineTo(posX * 10, posY * 10 + 9);
+          mouseOverCtx.lineTo(posX * 10, posY * 10);
+          mouseOverCtx.lineTo(posX * 10 + 9, posY * 10 + 9);
+          mouseOverCtx.moveTo(posX * 10, posY * 10);
+          mouseOverCtx.stroke();
+          posY++;
+          continue;
+        }
+        var r = frame.data[(y*canvas.width + x) * 4 + 0];
+        var g = frame.data[(y*canvas.width + x) * 4 + 1];
+        var b = frame.data[(y*canvas.width + x) * 4 + 2];
+        if (x === lastVideoX && y === lastVideoY) {
+          $('#videoLabelMouseR').text(r);
+          $('#videoLabelMouseG').text(g);
+          $('#videoLabelMouseB').text(b);
+        }
+        console.log("line: " + lastVideoX + ", " + x);
+        mouseOverCtx.fillStyle = "rgb(" + r + "," + g + "," + b +")";
+        mouseOverCtx.fillRect(posX * 10, posY * 10, 10, 10);
+        posY++;
+      }
+      posY = 0;
+      posX++;
+    }
+    mouseOverCtx.fillStyle = "rgb(0,0,0)";
+    mouseOverCtx.strokeRect(20, 20, 10, 10);
+  }
+
+};
+
 function seekFrame(video, deltaFrame, fps) {
   if (video.paused == false) {
     video.pause();
@@ -228,6 +317,11 @@ function seekFrame(video, deltaFrame, fps) {
   var currentFrames = video.currentTime * fps;
   var newPos = (currentFrames + deltaFrame) / fps;
   video.currentTime = newPos;
+
+  // Wait until the next frame is ready
+  setTimeout(function() {
+    updateVideoLabel();  
+  }, 300);
 }
 
 $(function() {
