@@ -19,7 +19,10 @@ experimental support for B2G on the pandaboard.
   cases: see below).
 
 * Installed Android SDK with the tools in your path. Please follow the
-  instructions at https://wiki.mozilla.org/Mobile/Fennec/Android#Setup_a_Build_Environment
+  instructions at https://wiki.mozilla.org/Mobile/Fennec/Android#Setup_a_Build_Environment.
+  The location and name of earm-eabi-addr2line varies between NDK versions, to keep it
+  consistent make a symlink named 'arm-eabi-addr2line' in your path pointing to
+  addr2line with the NDK toolchain.
 
 * A supported mobile phone running Android with Orangutan installed in
   `/system/ Eideticker's tests are specifically tuned for specific screen
