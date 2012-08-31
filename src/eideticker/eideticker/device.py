@@ -83,6 +83,20 @@ class EidetickerMixin(object):
             self._shellCheckOutput(["/system/xbin/orng", self.inputDevice,
                                     remotefilename])
 
+    def getPIDs(self, appname):
+        '''FIXME: Total hack, put this in devicemanagerADB instead'''
+        procs = self.getProcessList()
+        pids = []
+        for (pid, name, user) in procs:
+            if name == appname:
+                pids.append(pid)
+        return pids
+
+    def sendSaveProfileSignal(self, appName):
+        pids = self.getPIDs(appName)
+        if pids:
+            self._shellCheckOutput(['kill', '-s', '12', pids[0]])
+
     def getprop(self, prop):
         return self._shellCheckOutput(["getprop", str(prop)])
 

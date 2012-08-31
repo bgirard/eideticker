@@ -5,6 +5,10 @@ set -e
 EIDETICKER=$(dirname $0)/../
 TESTS="clock taskjs nightly cnn nytimes-scroll nytimes-zoom reddit wikipedia imgur"
 
+if [ -z $NUM_RUNS ]; then
+    NUM_RUNS=5
+fi
+
 if [ $# -gt 0 ]; then
     TESTS=$@
 fi
@@ -25,5 +29,5 @@ for TEST in $TESTS; do
   # from unsuccessful runs kicking around)
   rm -rf /tmp/eideticker/*
   echo "Running $TEST"
-  ./bin/update-dashboard.py --product nightly --num-runs 5 $TEST src/dashboard
+  ./bin/update-dashboard.py --product nightly --num-runs $NUM_RUNS $TEST src/dashboard
 done
